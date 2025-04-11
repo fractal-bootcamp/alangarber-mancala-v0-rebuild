@@ -258,14 +258,14 @@ export function MancalaGame({ forceGameMode }: MancalaGameProps) {
 
       // For multiplayer, check if it's the player's turn
       if (gameMode === "multiplayer") {
-        const playerRole = isFirstPlayer ? "player1" : "player2"
-        if (currentPlayer !== playerRole) {
+        const isMyTurn = currentPlayer === (isFirstPlayer ? "player1" : "player2");
+        if (!isMyTurn) {
           toast({
             title: "Not your turn",
             description: "Please wait for your opponent to make a move.",
             variant: "destructive",
-          })
-          return
+          });
+          return;
         }
 
         // For multiplayer, send the move to the server

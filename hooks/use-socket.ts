@@ -10,6 +10,7 @@ interface ServerToClientEvents {
     gameId: string
     board: number[]
     currentPlayer: "player1" | "player2"
+    yourPlayer?: "player1" | "player2"  
     lastMove?: {
       player: "player1" | "player2"
       pocket: number
@@ -19,7 +20,7 @@ interface ServerToClientEvents {
   playerJoined: (data: { gameId: string; player: "player1" | "player2" }) => void
   gameOver: (data: { winner: "player1" | "player2" | "tie"; message: string }) => void
   error: (message: string) => void
-  matched: (data: { gameId: string; player: "player1" | "player2" }) => void
+  matched: (data: { gameId: string; player: "player1" | "player2"; currentPlayer: "player1" | "player2" }) => void
   opponentDisconnected: (data: { gameId: string; message: string }) => void
 }
 
@@ -107,6 +108,7 @@ export function useSocket() {
       gameId: string
       board: number[]
       currentPlayer: "player1" | "player2"
+      yourPlayer?: "player1" | "player2" 
       lastMove?: {
         player: "player1" | "player2"
         pocket: number
@@ -121,17 +123,30 @@ export function useSocket() {
       }
     }
 
-    const onMatched = (data: { gameId: string; player: "player1" | "player2" }) => {
+    const onMatched = (data: { gameId: string; player: "player1" | "player2"; currentPlayer: "player1" | "player2" }) => {
       console.log("Matched with opponent:", data)
       setStatus("matched")
       setGameId(data.gameId)
       setPlayer(data.player)
+      setCurrentPlayer(data.currentPlayer)
       setWaitingStartTime(null)
 
       toast({
         title: "Opponent found!",
         description: `You are ${data.player === "player1" ? "Player 1" : "Player 2"}`,
       })
+
+      if (data.player === data.currentPlayer) {
+        toast({
+          title: "Your Move!",
+          description: "It's your turn to make the first move.",
+        })
+      } else {
+        toast({
+          title: "Waiting...",
+          description: "Opponent's turn. Get ready!",
+        })
+      }      
     }
 
     const onError = (message: string) => {
