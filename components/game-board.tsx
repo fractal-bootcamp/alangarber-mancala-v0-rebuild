@@ -9,9 +9,10 @@ interface GameBoardProps {
   onPocketClick: (index: number) => void
   isAnimating: boolean
   selectedPocket: number | null
+  disabled?: boolean
 }
 
-export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, selectedPocket }: GameBoardProps) {
+export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, selectedPocket, disabled }: GameBoardProps) {
   // Keep a copy of the previous board state for animations
   const [prevBoard, setPrevBoard] = useState<number[]>(board)
   const [animatingStones, setAnimatingStones] = useState<{ from: number; to: number }[]>([])
@@ -78,7 +79,7 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
 
   // Determine if a pocket is clickable
   const isPocketClickable = (index: number) => {
-    if (isAnimating) return false
+    if (disabled || isAnimating) return false
 
     if (currentPlayer === "player1") {
       return index >= 0 && index < 6 && board[index] > 0
@@ -86,6 +87,14 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
       return index >= 7 && index < 13 && board[index] > 0
     }
   }
+
+  if (disabled) {
+    return (
+      <div className="w-full bg-amber-50 rounded-xl p-6 shadow-lg flex items-center justify-center h-[400px]">
+        <div className="text-slate-500 text-xl animate-pulse">Board loading...</div>
+      </div>
+    )
+  }  
 
   return (
     <div className="w-full bg-amber-50 rounded-xl p-6 shadow-lg">
@@ -164,7 +173,7 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
               <button
                 key={`p2-${index}`}
                 onClick={() => isPocketClickable(index) && onPocketClick(index)}
-                disabled={!isPocketClickable(index)}
+                disabled={disabled || !isPocketClickable(index)}
                 className={`h-24 rounded-full flex items-center justify-center bg-amber-100 relative overflow-hidden ${
                   isPocketClickable(index) ? "hover:bg-amber-200 cursor-pointer" : "cursor-not-allowed"
                 } ${

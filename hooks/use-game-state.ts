@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { createGame, checkGameOver, determineWinner } from "@/lib/game-logic"
 
-// Define a type for the persisted game state
 interface PersistedGameState {
   board: number[]
   currentPlayer: "player1" | "player2"
@@ -23,12 +22,11 @@ export function useGameState() {
   useEffect(() => {
     if (initialized) return
 
-    const savedState = localStorage.getItem("mancalaGameState")
+    const key = `mancalaGameState-${gameMode || "default"}`
+    const savedState = localStorage.getItem(key)
     if (savedState) {
       try {
         const parsedState = JSON.parse(savedState) as PersistedGameState
-
-        // Only restore if the saved state is less than 24 hours old
         const isRecent = Date.now() - parsedState.lastUpdated < 24 * 60 * 60 * 1000
 
         if (isRecent) {
@@ -36,39 +34,35 @@ export function useGameState() {
           setCurrentPlayer(parsedState.currentPlayer)
           setGameMode(parsedState.gameMode)
 
-          // Check if the loaded game is already over
           if (checkGameOver(parsedState.board)) {
             setGameOver(true)
             setWinner(determineWinner(parsedState.board))
           }
         } else {
-          // Clear outdated state
-          localStorage.removeItem("mancalaGameState")
+          localStorage.removeItem(key)
         }
       } catch (error) {
         console.error("Error loading saved game state:", error)
-        localStorage.removeItem("mancalaGameState")
+        localStorage.removeItem(key)
       }
     }
 
     setInitialized(true)
-  }, [initialized])
+  }, [initialized, gameMode])
 
-  // Save game state to localStorage whenever it changes
   const saveGameState = useCallback(() => {
-    // Only save if we have a valid game mode (single or computer)
     if (gameMode && !gameOver && initialized) {
+      const key = `mancalaGameState-${gameMode}`
       const stateToSave: PersistedGameState = {
         board,
         currentPlayer,
         gameMode,
         lastUpdated: Date.now(),
       }
-      localStorage.setItem("mancalaGameState", JSON.stringify(stateToSave))
+      localStorage.setItem(key, JSON.stringify(stateToSave))
     }
   }, [board, currentPlayer, gameMode, gameOver, initialized])
 
-  // Save game state when relevant state changes
   useEffect(() => {
     saveGameState()
   }, [board, currentPlayer, gameMode, gameOver, saveGameState])
@@ -85,31 +79,29 @@ export function useGameState() {
     }
   }, [])
 
-  const updateGameState = useCallback(
-    (newBoard: number[]) => {
-      setBoard(newBoard)
+  const updateGameState = useCallback((newBoard: number[]) => {
+    setBoard(newBoard)
+    if (checkGameOver(newBoard)) {
+      setGameOver(true)
+      setWinner(determineWinner(newBoard))
 
-      // Check if the game is over
-      if (checkGameOver(newBoard)) {
-        setGameOver(true)
-        setWinner(determineWinner(newBoard))
-
-        // Clear saved game state when game is over
-        if (gameMode) {
-          localStorage.removeItem("mancalaGameState")
-        }
+      if (gameMode) {
+        const key = `mancalaGameState-${gameMode}`
+        localStorage.removeItem(key)
       }
-    },
-    [gameMode],
-  )
+    }
+  }, [gameMode])
 
   const resetGame = useCallback(() => {
     initializeGame(gameMode)
   }, [initializeGame, gameMode])
 
   const clearSavedGame = useCallback(() => {
-    localStorage.removeItem("mancalaGameState")
-  }, [])
+    if (gameMode) {
+      const key = `mancalaGameState-${gameMode}`
+      localStorage.removeItem(key)
+    }
+  }, [gameMode])
 
   return {
     board,
