@@ -12,7 +12,7 @@ interface GameBoardProps {
   disabled?: boolean
 }
 
-export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, selectedPocket, disabled }: GameBoardProps) {
+export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, selectedPocket }: GameBoardProps) {
   // Keep a copy of the previous board state for animations
   const [prevBoard, setPrevBoard] = useState<number[]>(board)
   const [animatingStones, setAnimatingStones] = useState<{ from: number; to: number }[]>([])
@@ -79,7 +79,7 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
 
   // Determine if a pocket is clickable
   const isPocketClickable = (index: number) => {
-    if (disabled || isAnimating) return false
+    if (isAnimating) return false
 
     if (currentPlayer === "player1") {
       return index >= 0 && index < 6 && board[index] > 0
@@ -87,14 +87,6 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
       return index >= 7 && index < 13 && board[index] > 0
     }
   }
-
-  if (disabled) {
-    return (
-      <div className="w-full bg-amber-50 rounded-xl p-6 shadow-lg flex items-center justify-center h-[400px]">
-        <div className="text-slate-500 text-xl animate-pulse">Board loading...</div>
-      </div>
-    )
-  }  
 
   return (
     <div className="w-full bg-amber-50 rounded-xl p-6 shadow-lg">
@@ -110,9 +102,12 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
             currentPlayer === "player2" ? "border-amber-500" : "border-amber-200"
           }`}
         >
-          <div className="text-center">
-            <div className="text-xl font-bold">{board[13]}</div>
+          <div className="text-center flex flex-col items-center">
+            <div className="flex-1 flex items-center justify-center w-full">
+              <StonesDisplay count={board[13]} />
+            </div>
             <div className="text-xs mt-1">Player 2&apos;s Store</div>
+            <div className="text-xs text-slate-500 mt-1">{board[13]}</div>
           </div>
 
           {/* Change indicator for Player 2's store */}
@@ -173,7 +168,7 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
               <button
                 key={`p2-${index}`}
                 onClick={() => isPocketClickable(index) && onPocketClick(index)}
-                disabled={disabled || !isPocketClickable(index)}
+                disabled={!isPocketClickable(index)}
                 className={`h-24 rounded-full flex items-center justify-center bg-amber-100 relative overflow-hidden ${
                   isPocketClickable(index) ? "hover:bg-amber-200 cursor-pointer" : "cursor-not-allowed"
                 } ${
@@ -182,7 +177,12 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
                     : "border-2 border-amber-100"
                 }`}
               >
-                <StonesDisplay count={board[index]} />
+                <div className="flex flex-col items-center justify-center w-full h-full">
+                  <div className="flex-1 flex items-center justify-center w-full">
+                    <StonesDisplay count={board[index]} />
+                  </div>
+                  {board[index] > 0 && <div className="text-xs text-slate-500 absolute bottom-1">{board[index]}</div>}
+                </div>
 
                 {/* Change indicator */}
                 <AnimatePresence>
@@ -245,7 +245,11 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
                     className="absolute inset-0 bg-amber-200 flex items-center justify-center z-0"
                     transition={{ duration: 1.5 }}
                   >
-                    <span className="text-amber-800 font-medium">Moving...</span>
+                    <div className="w-16 h-16 flex items-center justify-center">
+                      <span className="text-amber-800 text-sm font-medium px-2 py-1 rounded-md bg-amber-100/80 whitespace-nowrap">
+                        Moving...
+                      </span>
+                    </div>
                   </motion.div>
                 )}
               </button>
@@ -267,7 +271,12 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
                     : "border-2 border-amber-100"
                 }`}
               >
-                <StonesDisplay count={board[index]} />
+                <div className="flex flex-col items-center justify-center w-full h-full">
+                  <div className="flex-1 flex items-center justify-center w-full">
+                    <StonesDisplay count={board[index]} />
+                  </div>
+                  {board[index] > 0 && <div className="text-xs text-slate-500 absolute bottom-1">{board[index]}</div>}
+                </div>
 
                 {/* Change indicator */}
                 <AnimatePresence>
@@ -330,7 +339,11 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
                     className="absolute inset-0 bg-amber-200 flex items-center justify-center z-0"
                     transition={{ duration: 1.5 }}
                   >
-                    <span className="text-amber-800 font-medium">Moving...</span>
+                    <div className="w-16 h-16 flex items-center justify-center">
+                      <span className="text-amber-800 text-sm font-medium px-2 py-1 rounded-md bg-amber-100/80 whitespace-nowrap">
+                        Moving...
+                      </span>
+                    </div>
                   </motion.div>
                 )}
               </button>
@@ -344,9 +357,12 @@ export function GameBoard({ board, currentPlayer, onPocketClick, isAnimating, se
             currentPlayer === "player1" ? "border-amber-500" : "border-amber-200"
           }`}
         >
-          <div className="text-center">
-            <div className="text-xl font-bold">{board[6]}</div>
+          <div className="text-center flex flex-col items-center">
+            <div className="flex-1 flex items-center justify-center w-full">
+              <StonesDisplay count={board[6]} />
+            </div>
             <div className="text-xs mt-1">Player 1&apos;s Store</div>
+            <div className="text-xs text-slate-500 mt-1">{board[6]}</div>
           </div>
 
           {/* Change indicator for Player 1's store */}
@@ -409,8 +425,59 @@ function StonesDisplay({ count }: { count: number }) {
     return <span className="text-slate-400">Empty</span>
   }
 
+  if (count > 20) {
+    // For very large numbers, show a compact representation
+    return (
+      <div className="flex flex-wrap justify-center items-center w-full h-full p-2">
+        <div className="grid grid-cols-5 gap-1">
+          {Array.from({ length: 15 }).map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="w-3 h-3 rounded-full"
+              style={{
+                backgroundColor: [
+                  "#f59e0b", // amber-500
+                  "#84cc16", // lime-500
+                  "#06b6d4", // cyan-500
+                  "#8b5cf6", // violet-500
+                  "#ec4899", // pink-500
+                ][i % 5],
+              }}
+            />
+          ))}
+        </div>
+        <div className="absolute opacity-50 font-medium text-sm">+{count - 15} more</div>
+      </div>
+    )
+  }
+
   if (count > 10) {
-    return <span className="text-xl font-bold">{count}</span>
+    // For medium numbers, use a grid layout
+    return (
+      <div className="flex flex-wrap justify-center items-center w-full h-full p-2">
+        <div className="grid grid-cols-4 gap-1">
+          {Array.from({ length: count }).map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="w-3 h-3 rounded-full"
+              style={{
+                backgroundColor: [
+                  "#f59e0b", // amber-500
+                  "#84cc16", // lime-500
+                  "#06b6d4", // cyan-500
+                  "#8b5cf6", // violet-500
+                  "#ec4899", // pink-500
+                ][i % 5],
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   // Display stones visually for counts 1-10
