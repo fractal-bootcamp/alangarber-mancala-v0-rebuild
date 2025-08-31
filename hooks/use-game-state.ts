@@ -22,11 +22,9 @@ export function useGameState() {
   useEffect(() => {
     if (initialized) return
 
-    // First, try to load the saved game mode
     const savedMode = localStorage.getItem("mancalaGameMode") as "single" | "computer" | null
     
     if (savedMode) {
-      // Use the saved mode to load the correct game state
       const key = `mancalaGameState-${savedMode}`
       const savedState = localStorage.getItem(key)
       
@@ -45,11 +43,8 @@ export function useGameState() {
               setWinner(determineWinner(parsedState.board))
             }
           } else {
-            // Game state is too old, remove it
             localStorage.removeItem(key)
-            // But still set the game mode so we stay in the right mode
             setGameMode(savedMode)
-            // Initialize a fresh game for this mode
             const initialBoard = createGame()
             setBoard(initialBoard)
             setCurrentPlayer("player1")
@@ -57,15 +52,12 @@ export function useGameState() {
         } catch (error) {
           console.error("Error loading saved game state:", error)
           localStorage.removeItem(key)
-          // Still set the mode even if loading failed
           setGameMode(savedMode)
-          // Initialize a fresh game
           const initialBoard = createGame()
           setBoard(initialBoard)
           setCurrentPlayer("player1")
         }
       } else {
-        // No saved state but we have a mode, initialize fresh game
         setGameMode(savedMode)
         const initialBoard = createGame()
         setBoard(initialBoard)
