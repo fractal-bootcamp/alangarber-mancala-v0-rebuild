@@ -22,33 +22,59 @@ export function useGameState() {
   useEffect(() => {
     if (initialized) return
 
-    const key = `mancalaGameState-${gameMode || "default"}`
-    const savedState = localStorage.getItem(key)
-    if (savedState) {
-      try {
-        const parsedState = JSON.parse(savedState) as PersistedGameState
-        const isRecent = Date.now() - parsedState.lastUpdated < 24 * 60 * 60 * 1000
+    // First, try to load the saved game mode
+    const savedMode = localStorage.getItem("mancalaGameMode") as "single" | "computer" | null
+    
+    if (savedMode) {
+      // Use the saved mode to load the correct game state
+      const key = `mancalaGameState-${savedMode}`
+      const savedState = localStorage.getItem(key)
+      
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState) as PersistedGameState
+          const isRecent = Date.now() - parsedState.lastUpdated < 24 * 60 * 60 * 1000
 
-        if (isRecent) {
-          setBoard(parsedState.board)
-          setCurrentPlayer(parsedState.currentPlayer)
-          setGameMode(parsedState.gameMode)
+          if (isRecent) {
+            setBoard(parsedState.board)
+            setCurrentPlayer(parsedState.currentPlayer)
+            setGameMode(parsedState.gameMode || savedMode)
 
-          if (checkGameOver(parsedState.board)) {
-            setGameOver(true)
-            setWinner(determineWinner(parsedState.board))
+            if (checkGameOver(parsedState.board)) {
+              setGameOver(true)
+              setWinner(determineWinner(parsedState.board))
+            }
+          } else {
+            // Game state is too old, remove it
+            localStorage.removeItem(key)
+            // But still set the game mode so we stay in the right mode
+            setGameMode(savedMode)
+            // Initialize a fresh game for this mode
+            const initialBoard = createGame()
+            setBoard(initialBoard)
+            setCurrentPlayer("player1")
           }
-        } else {
+        } catch (error) {
+          console.error("Error loading saved game state:", error)
           localStorage.removeItem(key)
+          // Still set the mode even if loading failed
+          setGameMode(savedMode)
+          // Initialize a fresh game
+          const initialBoard = createGame()
+          setBoard(initialBoard)
+          setCurrentPlayer("player1")
         }
-      } catch (error) {
-        console.error("Error loading saved game state:", error)
-        localStorage.removeItem(key)
+      } else {
+        // No saved state but we have a mode, initialize fresh game
+        setGameMode(savedMode)
+        const initialBoard = createGame()
+        setBoard(initialBoard)
+        setCurrentPlayer("player1")
       }
     }
 
     setInitialized(true)
-  }, [initialized, gameMode])
+  }, [initialized])
 
   const saveGameState = useCallback(() => {
     if (gameMode && !gameOver && initialized) {

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
@@ -32,7 +33,8 @@ export function MancalaGame({ forceGameMode }: MancalaGameProps) {
   const [selectedPocketIndex, setSelectedPocketIndex] = useState<number | null>(null)
   const [waitingTime, setWaitingTime] = useState(30)
   const [hasGameStarted, setHasGameStarted] = useState(false)
-  const [isResetting, setIsResetting] = useState(false)  // <-- NEW!
+  const [isResetting, setIsResetting] = useState(false)
+  const [shouldStartFresh, setShouldStartFresh] = useState(false)  // NEW: Track if we should start fresh
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const gameModeInitialized = useRef(false)
@@ -50,6 +52,7 @@ export function MancalaGame({ forceGameMode }: MancalaGameProps) {
     setCurrentPlayer,
     setBoard,
     setGameMode: setStoredGameMode,
+    clearSavedGame,
   } = useGameState()
 
   const {
@@ -77,11 +80,22 @@ export function MancalaGame({ forceGameMode }: MancalaGameProps) {
     if (forceGameMode) {
       setGameMode(forceGameMode)
     } else {
-      const saved = localStorage.getItem("mancalaGameMode") as "single" | "computer" | "multiplayer" | null
-      if (saved) setGameMode(saved)
+      // Check if we should start fresh (user clicked New Game) or load saved state
+      if (shouldStartFresh) {
+        // User clicked New Game - don't load saved state
+        const saved = localStorage.getItem("mancalaGameMode") as "single" | "computer" | "multiplayer" | null
+        if (saved) setGameMode(saved)
+      } else if (savedGameMode) {
+        // Loading from saved state after refresh
+        setGameMode(savedGameMode)
+      } else {
+        // No saved game state, check for saved mode
+        const saved = localStorage.getItem("mancalaGameMode") as "single" | "computer" | "multiplayer" | null
+        if (saved) setGameMode(saved)
+      }
     }
     gameModeInitialized.current = true
-  }, [forceGameMode])
+  }, [forceGameMode, savedGameMode, shouldStartFresh])
 
   useEffect(() => {
     if (!gameModeInitialized.current || !gameMode) return
@@ -102,26 +116,30 @@ export function MancalaGame({ forceGameMode }: MancalaGameProps) {
         }
 
         setIsResetting(false)
+        setShouldStartFresh(false)  // Reset the flag
       }, 400)
-    } else {
-      if (gameMode !== "multiplayer") {
+    } else if (!prev && gameMode !== "multiplayer") {
+      // First load - check if we should start fresh or load saved state
+      if (shouldStartFresh || !savedGameMode || savedGameMode !== gameMode) {
         initializeGame(gameMode)
-        setStoredGameMode(gameMode)
       }
+      setStoredGameMode(gameMode)
+      setShouldStartFresh(false)  // Reset the flag
     }
 
     previousGameMode.current = gameMode
     localStorage.setItem("mancalaGameMode", gameMode)
-  }, [gameMode, leaveGame, initializeGame, setStoredGameMode])
+  }, [gameMode, savedGameMode, shouldStartFresh, leaveGame, initializeGame, setStoredGameMode])
 
-  useEffect(() => {
-    if (!gameMode || gameMode === "multiplayer") return
+  // Remove or comment out this effect - it's causing the re-initialization
+  // useEffect(() => {
+  //   if (!gameMode || gameMode === "multiplayer") return
 
-    if (savedGameMode !== gameMode) {
-      initializeGame(gameMode)
-      setStoredGameMode(gameMode)
-    }
-  }, [gameMode, savedGameMode, initializeGame, setStoredGameMode])
+  //   if (savedGameMode !== gameMode) {
+  //     initializeGame(gameMode)
+  //     setStoredGameMode(gameMode)
+  //   }
+  // }, [gameMode, savedGameMode, initializeGame, setStoredGameMode])
 
   useEffect(() => {
     if (gameMode !== "multiplayer" || !isConnected) return
@@ -222,26 +240,39 @@ export function MancalaGame({ forceGameMode }: MancalaGameProps) {
         joinGame()
       } else {
         resetGame()
-        localStorage.removeItem(`mancalaGameState-${gameMode}`)
+        clearSavedGame()
       }
       setShowGameOver(false)
       setGameResult({ winner: null, message: "" })
       setHasGameStarted(false)
     } else {
+      // Clear ALL game states from localStorage when starting fresh
       if (gameMode === "multiplayer") leaveGame()
-      if (gameMode) localStorage.removeItem(`mancalaGameState-${gameMode}`)
+      
+      // Clear all possible saved game states
+      localStorage.removeItem(`mancalaGameState-single`)
+      localStorage.removeItem(`mancalaGameState-computer`)
+      localStorage.removeItem(`mancalaGameState-multiplayer`)
+      localStorage.removeItem(`mancalaGameState-default`)
+      
+      setShouldStartFresh(true)  // NEW: Set flag to start fresh
       setGameMode(null)
       gameModeInitialized.current = false
+      previousGameMode.current = null  // Reset this too
       setShowGameOver(false)
       setGameResult({ winner: null, message: "" })
       setHasGameStarted(false)
       localStorage.removeItem("mancalaGameMode")
     }
-  }, [gameMode, leaveGame, joinGame, resetGame])
+  }, [gameMode, leaveGame, joinGame, resetGame, clearSavedGame])
 
   const handleReturnHome = useCallback(() => {
     if (gameMode === "multiplayer") leaveGame()
-    if (gameMode) localStorage.removeItem(`mancalaGameState-${gameMode}`)
+    // Clear ALL game states when returning home
+    localStorage.removeItem(`mancalaGameState-single`)
+    localStorage.removeItem(`mancalaGameState-computer`)
+    localStorage.removeItem(`mancalaGameState-multiplayer`)
+    localStorage.removeItem(`mancalaGameState-default`)
     localStorage.removeItem("mancalaGameMode")
     router.push("/")
   }, [gameMode, leaveGame, router])
@@ -276,7 +307,11 @@ export function MancalaGame({ forceGameMode }: MancalaGameProps) {
   // ========= UI Conditions =========
 
   if (!gameMode) {
-    return <GameMode onSelectMode={setGameMode} />
+    return <GameMode onSelectMode={(mode) => {
+      setGameMode(mode)
+      // If shouldStartFresh is true, we'll initialize a new game in the effect
+      // Otherwise, we'll load any saved state
+    }} />
   }
 
   if (gameMode === "multiplayer" && socketStatus === "waiting") {
